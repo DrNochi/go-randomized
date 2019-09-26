@@ -1,6 +1,3 @@
-from dlgo.gotypes import Point
-
-
 def is_point_an_eye(board, point, player):
     if board[point] is not None:
         return False

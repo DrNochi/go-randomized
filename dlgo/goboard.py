@@ -139,7 +139,7 @@ class Board:
                 self.cols == other.cols and
                 self._hash == other._hash)
 
-    def __deepcopy__(self, memodict={}):
+    def __deepcopy__(self, memodict=None):
         copied = Board(self.rows, self.cols)
         copied._grid = copy(self._grid)
         copied._hash = self._hash
@@ -152,7 +152,7 @@ class GameState:
         self.next_player = next_player
         self.prev_state = prev_state
         self.prev_states = prev_state.prev_states | frozenset(
-            (prev_state.board.hash,)) if self.prev_state is not None else frozenset()
+            (prev_state.board.hash,)) if prev_state is not None else frozenset()
         self.last_move = move
 
     def apply_move(self, move):
@@ -197,7 +197,9 @@ class GameState:
         elif self.last_move.is_resign:
             return True
 
-        return self.prev_state.last_move.is_pass if self.last_move.is_pass and self.prev_state.last_move is not None else False
+        return (self.prev_state.last_move.is_pass
+                if self.last_move.is_pass and self.prev_state.last_move is not None
+                else False)
 
     def is_valid(self, move):
         return not self.is_over() and (

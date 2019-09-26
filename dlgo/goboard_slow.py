@@ -125,7 +125,7 @@ class Board:
                 self._grid == other._grid)
 
 
-class GameState():
+class GameState:
     def __init__(self, board, next_player, prev_state, move):
         self.board = board
         self.next_player = next_player
@@ -181,7 +181,9 @@ class GameState():
         elif self.last_move.is_resign:
             return True
 
-        return self.prev_state.last_move.is_pass if self.last_move.is_pass and self.prev_state.last_move is not None else False
+        return (self.prev_state.last_move.is_pass
+                if self.last_move.is_pass and self.prev_state.last_move is not None
+                else False)
 
     def is_valid(self, move):
         return not self.is_over() and (
