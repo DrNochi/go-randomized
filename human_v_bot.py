@@ -1,6 +1,6 @@
 from dlgo.agent.naive import RandomBot
 from dlgo.goboard import GameState, Move
-from dlgo import gotypes
+from dlgo.gotypes import Player
 from dlgo.utils import print_board, print_move, point_from_coords
 from dlgo.scoring import GameResult
 import time
@@ -16,7 +16,7 @@ def main():
         print(chr(27) + "[2J")
         print_board(game.board)
 
-        if game.next_player == gotypes.Player.black:
+        if game.next_player == Player.black:
             human_move = input('-- ')
             if human_move == 'pass':
                 move = Move.pass_turn()
