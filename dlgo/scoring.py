@@ -1,98 +1,79 @@
 from collections import namedtuple
 from dlgo.gotypes import Player, Point
 
+
 class Territory:
-    def __init__(self, territory_map):
-        self.num_black_territory = 0
-        self.num_white_territory = 0
-        self.num_black_stones = 0
-        self.num_white_stones = 0
-        self.num_dame = 0
-        self.dame_points = []
-        for point, status in territory_map.items():
-            if status == Player.black:
-                self.num_black_stones += 1
-            elif status == Player.white:
-                self.num_white_stones += 1
-            elif status == 'territory_b':
-                self.num_black_territory += 1
-            elif status == 'territory_w':
-                self.num_white_territory += 1
-            elif status == 'dame':
-                self.num_dame += 1
-                self.dame_points.append(point)
+    def __init__(self, owners):
+        self.black = 0
+        self.white = 0
 
-class GameResult(namedtuple('GameResult', 'b w komi')):
+        for owner in owners.values():
+            if owner == Player.black:
+                self.black += 1
+            elif owner == Player.white:
+                self.white += 1
 
+    @classmethod
+    def evaluate(cls, board):
+        owners = {}
+        for r in range(1, board.rows + 1):
+            for c in range(1, board.cols + 1):
+                pos = Point(r, c)
+
+                if pos in owners:
+                    continue
+
+                owner = board.get_owner(pos)
+                if owner is not None:
+                    owners[pos] = owner
+                else:
+                    points, region_owners = cls._collect_region(pos, board)
+
+                    if len(region_owners) == 1:
+                        region_owner = region_owners.pop()
+                    else:
+                        region_owner = None
+
+                    for point in points:
+                        owners[point] = region_owner
+
+        return Territory(owners)
+
+    @classmethod
+    def _collect_region(cls, pos, board, visited=None):
+        if visited is None:
+            visited = set()
+
+        if pos in visited:
+            return [], set()
+        visited.add(pos)
+
+        points = [pos]
+        owners = set()
+
+        for neighbor in pos.neighbors():
+            if not board.is_on_board(neighbor):
+                continue
+
+            adj_owner = board.get_owner(neighbor)
+            if adj_owner is None:
+                adj_points, adj_owners = cls._collect_region(neighbor, board, visited)
+                points += adj_points
+                owners |= adj_owners
+            else:
+                owners.add(adj_owner)
+
+        return points, owners
+
+
+class GameResult(namedtuple('GameResult', 'black white komi')):
     def winner(self):
-        if self.b > self.w + self.komi:
-            return Player.black
-        return Player.white
+        return Player.black if self.black > self.white + self.komi else Player.black
 
     def winning_margin(self):
-        w = self.w + self.komi
-        return abs(self.b - w)
+        return abs(self.black - self.white - self.komi)
 
-    def __str__(self):
-        w = self.w + self.komi
-        if self.b > w:
-            return 'B+%.1f' % (self.b - w,)
-        return 'W+%.1f' % (w - self.b,)
-
-
-def evaluate_territory(board):
-
-    status = {}
-    for r in range(1, board.rows + 1):
-        for c in range(1, board.cols + 1):
-            p = Point(row=r, col=c)
-            if p in status:
-                continue
-            stone = board.get_owner(p)
-            if stone is not None:
-                status[p] = board.get_owner(p)
-            else:
-                group, neighbors = _collect_region(p, board)
-                if len(neighbors) == 1:
-                    neighbor_stone = neighbors.pop()
-                    stone_str = 'b' if neighbor_stone == Player.black else 'w'
-                    fill_with = 'territory_' + stone_str
-                else:
-                    fill_with = 'dame'
-                for pos in group:
-                    status[pos] = fill_with
-    return Territory(status)
-
-
-def _collect_region(start_pos, board, visited=None):
-
-    if visited is None:
-        visited = {}
-    if start_pos in visited:
-        return [], set()
-    all_points = [start_pos]
-    all_borders = set()
-    visited[start_pos] = True
-    here = board.get_owner(start_pos)
-    deltas = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-    for delta_r, delta_c in deltas:
-        next_p = Point(row=start_pos.row + delta_r, col=start_pos.col + delta_c)
-        if not board.is_on_board(next_p):
-            continue
-        neighbor = board.get_owner(next_p)
-        if neighbor == here:
-            points, borders = _collect_region(next_p, board, visited)
-            all_points += points
-            all_borders |= borders
-        else:
-            all_borders.add(neighbor)
-    return all_points, all_borders
-
-
-def compute_game_result(game_state):
-    
-    territory = evaluate_territory(game_state.board)
-    return GameResult(
-        territory.num_black_territory + territory.num_black_stones,
-        territory.num_white_territory + territory.num_white_stones,
-        komi=7.5)
+    @staticmethod
+    def compute(game, komi):
+        territory = Territory.evaluate(game.board)
+        return GameResult(territory.black, territory.white, komi)
