@@ -2,6 +2,7 @@ from dlgo.agent.naive import RandomBot
 from dlgo.goboard import GameState
 from dlgo.gotypes import Player
 from dlgo.utils import print_board, print_move
+from dlgo.scoring import GameResult
 import time
 
 
@@ -20,6 +21,8 @@ def main():
         bot_move = bots[game.next_player].select_move(game)
         print_move(game.next_player, bot_move)
         game = game.apply_move(bot_move)
+
+    print(GameResult.compute(game, 7.5))
 
 
 if __name__ == '__main__':
