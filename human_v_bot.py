@@ -1,5 +1,5 @@
 from dlgo.agent.naive import RandomBot
-from dlgo.goboard import GameState, Move
+from dlgo.goboard_fast import GameState, Move
 from dlgo.gotypes import Player
 from dlgo.utils import print_board, print_move, point_from_coords
 from dlgo.scoring import GameResult
