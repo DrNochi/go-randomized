@@ -1,6 +1,5 @@
 from dlgo.gotypes import Player, Point
 
-
 HASH_CODE = {
     (Point(row=1, col=1), Player.black): 4216255675155391431,
     (Point(row=1, col=1), Player.white): 2473730551406370035,

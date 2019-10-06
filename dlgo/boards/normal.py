@@ -1,62 +1,33 @@
 from copy import deepcopy, copy
-from dlgo.gotypes import Player, Point
-from dlgo.zobrist import HASH_CODE, HASH_CODE_EMPTY
+
+from dlgo.boards.base import GoString, Board, GameState
+from dlgo.boards.zobrist import HASH_CODE, HASH_CODE_EMPTY
+from dlgo.gotypes import Player
 
 
-class Move:
-    def __init__(self, point=None, is_pass=False, is_resign=False):
-        assert (point is not None) ^ is_pass ^ is_resign
-        self.point = point
-        self.is_play = (self.point is not None)
-        self.is_pass = is_pass
-        self.is_resign = is_resign
-
-    @staticmethod
-    def play(point):
-        return Move(point=point)
-
-    @staticmethod
-    def pass_turn():
-        return Move(is_pass=True)
-
-    @staticmethod
-    def resign():
-        return Move(is_resign=True)
-
-
-class GoString:
+class FrozenGoString(GoString):
     def __init__(self, owner, stones, liberties):
-        self.owner = owner
-        self.stones = frozenset(stones)
-        self.liberties = frozenset(liberties)
+        super().__init__(owner, frozenset(stones), frozenset(liberties))
 
     def without_liberty(self, point):
-        return GoString(self.owner, self.stones, self.liberties - frozenset([point]))
+        return FrozenGoString(self.owner, self.stones, self.liberties - frozenset([point]))
 
     def with_liberty(self, point):
-        return GoString(self.owner, self.stones, self.liberties | frozenset([point]))
+        return FrozenGoString(self.owner, self.stones, self.liberties | frozenset([point]))
 
     def merged_with(self, string):
         assert string.owner == self.owner
         common_stones = self.stones | string.stones
-        return GoString(self.owner, common_stones, self.liberties | string.liberties - common_stones)
+        return FrozenGoString(self.owner, common_stones, self.liberties | string.liberties - common_stones)
 
-    @property
-    def num_liberties(self):
-        return len(self.liberties)
-
-    def __eq__(self, other):
-        return (isinstance(other, GoString) and
-                self.owner == other.owner and
-                self.stones == other.stones and
-                self.liberties == other.liberties)
+    def __deepcopy__(self, memodict=None):
+        return FrozenGoString(self.owner, self.stones, deepcopy(self.liberties))
 
 
-class Board:
+class NormalBoard(Board):
     def __init__(self, rows, cols):
-        self.rows = rows
-        self.cols = cols
-        self._grid = {}
+        super().__init__(rows, cols)
+
         self._hash = HASH_CODE_EMPTY
 
     def place_stone(self, player, point):
@@ -82,7 +53,7 @@ class Board:
                 if adj_string not in adj_opponent_strings:
                     adj_opponent_strings.append(adj_string)
 
-        string = GoString(player, [point], liberties)
+        string = FrozenGoString(player, [point], liberties)
 
         for own_string in adj_own_strings:
             string = string.merged_with(own_string)
@@ -113,61 +84,34 @@ class Board:
             self[point] = None
             self._hash ^= HASH_CODE[point, string.owner]
 
-    def is_on_board(self, point):
-        return (1 <= point.row <= self.rows and
-                1 <= point.col <= self.cols)
-
-    def get_owner(self, point):
-        return self[point].owner if self[point] is not None else None
-
     @property
     def hash(self):
         return self._hash
 
-    def __getitem__(self, point):
-        assert isinstance(point, Point)
-        return self._grid.get(point)
-
-    def __setitem__(self, point, string):
-        assert isinstance(point, Point)
-        assert string is None or isinstance(string, GoString)
-        self._grid[point] = string
-
     def __eq__(self, other):
-        return (isinstance(other, Board) and
+        return (isinstance(other, NormalBoard) and
                 self.rows == other.rows and
                 self.cols == other.cols and
                 self._hash == other._hash)
 
     def __deepcopy__(self, memodict=None):
-        copied = Board(self.rows, self.cols)
+        copied = NormalBoard(self.rows, self.cols)
         copied._grid = copy(self._grid)
         copied._hash = self._hash
         return copied
 
 
-class GameState:
+class NormalGameState(GameState):
     def __init__(self, board, next_player, prev_state, move):
-        self.board = board
-        self.next_player = next_player
-        self.prev_state = prev_state
+        super().__init__(board, next_player, prev_state, move)
+
         self.prev_states = prev_state.prev_states | frozenset(
             (prev_state.board.hash,)) if prev_state is not None else frozenset()
-        self.last_move = move
-
-    def apply_move(self, move):
-        if move.is_play:
-            board = deepcopy(self.board)
-            board.place_stone(self.next_player, move.point)
-        else:
-            board = self.board
-
-        return GameState(board, self.next_player.other, self, move)
 
     @staticmethod
     def new_game(board_size):
         assert isinstance(board_size, int)
-        return GameState(Board(board_size, board_size), Player.black, None, None)
+        return NormalGameState(NormalBoard(board_size, board_size), Player.black, None, None)
 
     def is_suicide(self, player, move):
         if not move.is_play:
@@ -178,10 +122,6 @@ class GameState:
 
         return board[move.point].num_liberties == 0
 
-    # @property
-    # def situation(self):
-    #     return (self.next_player, self.board)
-
     def is_ko(self, player, move):
         if not move.is_play:
             return False
@@ -190,20 +130,3 @@ class GameState:
         board.place_stone(player, move.point)
 
         return board.hash in self.prev_states
-
-    def is_over(self):
-        if self.last_move is None:
-            return False
-        elif self.last_move.is_resign:
-            return True
-
-        return (self.prev_state.last_move.is_pass
-                if self.last_move.is_pass and self.prev_state.last_move is not None
-                else False)
-
-    def is_valid(self, move):
-        return not self.is_over() and (
-            move.is_pass or move.is_resign or (
-                self.board[move.point] is None and
-                not self.is_suicide(self.next_player, move) and
-                not self.is_ko(self.next_player, move)))

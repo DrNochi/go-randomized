@@ -1,13 +1,15 @@
-from dlgo.agent.naive import RandomBot
-from dlgo.goboard_fast import GameState, Move
-from dlgo.gotypes import Player
-from dlgo.utils import print_board, print_move, point_from_coords
-from dlgo.scoring import GameResult
 import time
 
+from dlgo.agents.minimax import MinimaxAgent
+from dlgo.agents.random import RandomAgent
+from dlgo.boards.fast import FastGameState
+from dlgo.gotypes import Player, Move
+from dlgo.scoring import Score
+from dlgo.utils import print_board, print_move, point_from_coords
 
 bots = {
-    "Random": RandomBot
+    "Random": RandomAgent,
+    "Minimax": MinimaxAgent
 }
 
 
@@ -88,7 +90,6 @@ elif game_mode == 2:
 elif game_mode == 3:
     pass
 
-
 clear_terminal()
 print_header()
 board_size = int(input("Choose a board size: "))
@@ -98,7 +99,7 @@ slow_down_bot = True
 if game_mode != 3:
     slow_down_bot = input("Slow down bot (y/n): ") == "y"
 
-game = GameState.new_game(board_size)
+game = FastGameState.new_game(board_size)
 
 while not game.is_over():
     print_game_state(game)
@@ -123,4 +124,4 @@ while not game.is_over():
     game = game.apply_move(move)
 
 print_game_state(game)
-print(GameResult.compute(game, komi))
+print(Score.compute(game, komi))
