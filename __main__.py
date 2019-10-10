@@ -1,15 +1,19 @@
 import time
 
+from dlgo.agents.mcts import MCTSAgent, StandardMCTSAgent
 from dlgo.agents.minimax import MinimaxAgent
-from dlgo.agents.random import RandomAgent
+from dlgo.agents.random import FastRandomAgent, FastConstrainedRandomAgent
 from dlgo.boards.fast import FastGameState
 from dlgo.gotypes import Player, Move
 from dlgo.scoring import Score
 from dlgo.utils import print_board, print_move, point_from_coords
 
 bots = {
-    "Random": RandomAgent,
-    "Minimax": MinimaxAgent
+    "Random (total)": FastRandomAgent(),
+    "Random (constrained)": FastConstrainedRandomAgent(),
+    "Minimax": MinimaxAgent(2),
+    "MCTS (random)": MCTSAgent(100),
+    "MCTS (UCT)": StandardMCTSAgent(100, 0.5)
 }
 
 
@@ -47,7 +51,7 @@ def choose_bot(prompt):
         i_to_key[i] = b
         i += 1
     print("")
-    return bots[i_to_key[int(choose())]]()
+    return bots[i_to_key[int(choose())]]
 
 
 clear_terminal()
@@ -99,7 +103,7 @@ slow_down_bot = True
 if game_mode != 3:
     slow_down_bot = input("Slow down bot (y/n): ") == "y"
 
-game = FastGameState.new_game(board_size)
+game = FastGameState.new_game(board_size, komi)
 
 while not game.is_over():
     print_game_state(game)
@@ -124,4 +128,7 @@ while not game.is_over():
     game = game.apply_move(move)
 
 print_game_state(game)
-print(Score.compute(game, komi))
+
+score = Score.compute(game)
+print("Score: ", score)
+print("Winner: ", game.winner_with_score(score))

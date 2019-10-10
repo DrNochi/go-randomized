@@ -77,6 +77,6 @@ class Score(namedtuple('Score', 'black white komi')):
         return abs(self.black - self.white - self.komi)
 
     @staticmethod
-    def compute(game, komi):
+    def compute(game):
         territory = Territory.evaluate(game.board)
-        return Score(territory.black, territory.white, komi)
+        return Score(territory.black, territory.white, game.komi)

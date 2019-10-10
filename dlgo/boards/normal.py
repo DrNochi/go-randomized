@@ -20,11 +20,11 @@ class FrozenGoString(GoString):
         common_stones = self.stones | string.stones
         return FrozenGoString(self.owner, common_stones, self.liberties | string.liberties - common_stones)
 
-    def __deepcopy__(self, memodict=None):
+    def __deepcopy__(self, memo=None):
         return FrozenGoString(self.owner, self.stones, deepcopy(self.liberties))
 
 
-class NormalBoard(Board):
+class ZobristBoard(Board):
     def __init__(self, rows, cols):
         super().__init__(rows, cols)
 
@@ -84,34 +84,33 @@ class NormalBoard(Board):
             self[point] = None
             self._hash ^= HASH_CODE[point, string.owner]
 
-    @property
-    def hash(self):
+    def __hash__(self):
         return self._hash
 
     def __eq__(self, other):
-        return (isinstance(other, NormalBoard) and
+        return (isinstance(other, ZobristBoard) and
                 self.rows == other.rows and
                 self.cols == other.cols and
                 self._hash == other._hash)
 
-    def __deepcopy__(self, memodict=None):
-        copied = NormalBoard(self.rows, self.cols)
+    def __deepcopy__(self, memo=None):
+        copied = self.__class__(self.rows, self.cols)
         copied._grid = copy(self._grid)
         copied._hash = self._hash
         return copied
 
 
 class NormalGameState(GameState):
-    def __init__(self, board, next_player, prev_state, move):
-        super().__init__(board, next_player, prev_state, move)
+    def __init__(self, board, next_player, prev_state, move, komi):
+        super().__init__(board, next_player, prev_state, move, komi)
 
-        self.prev_states = prev_state.prev_states | frozenset(
-            (prev_state.board.hash,)) if prev_state is not None else frozenset()
+        self.prev_states = (prev_state.prev_states | frozenset((hash(prev_state.board),))
+                            if prev_state is not None else frozenset())
 
     @staticmethod
-    def new_game(board_size):
+    def new_game(board_size, komi):
         assert isinstance(board_size, int)
-        return NormalGameState(NormalBoard(board_size, board_size), Player.black, None, None)
+        return NormalGameState(ZobristBoard(board_size, board_size), Player.black, None, None, komi)
 
     def is_suicide(self, player, move):
         if not move.is_play:
@@ -129,4 +128,4 @@ class NormalGameState(GameState):
         board = deepcopy(self.board)
         board.place_stone(player, move.point)
 
-        return board.hash in self.prev_states
+        return hash(board) in self.prev_states

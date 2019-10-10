@@ -49,20 +49,12 @@ class Move:
     def resign():
         return Move(is_resign=True)
 
+    # @property
+    # def tuple(self):
+    #     return self.is_play, self.is_pass, self.is_resign, self.point
+    #
     # def __hash__(self):
-    #     return hash((
-    #         self.is_play,
-    #         self.is_pass,
-    #         self.is_resign,
-    #         self.point))
-
-    # def  __eq__(self, other):
-    #     return (
-    #         self.is_play,
-    #         self.is_pass,
-    #         self.is_resign,
-    #         self.point) == (
-    #         other.is_play,
-    #         other.is_pass,
-    #         other.is_resign,
-    #         other.point)
+    #     return hash(self.tuple)
+    #
+    # def __eq__(self, other):
+    #     return isinstance(other, Move) and self.tuple == other.tuple

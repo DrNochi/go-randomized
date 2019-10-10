@@ -54,11 +54,16 @@ class Board:
 
 
 class GameState:
-    def __init__(self, board, next_player, prev_state, move):
+    def __init__(self, board, next_player, prev_state, move, komi):
         self.board = board
         self.next_player = next_player
         self.prev_state = prev_state
         self.last_move = move
+        self.komi = komi
+
+    @staticmethod
+    def new_game(board_size, komi):
+        raise NotImplementedError()
 
     def apply_move(self, move):
         if move.is_play:
@@ -67,7 +72,7 @@ class GameState:
         else:
             board = self.board
 
-        return self.__class__(board, self.next_player.other, self, move)
+        return self.__class__(board, self.next_player.other, self, move, self.komi)
 
     def is_suicide(self, player, move):
         raise NotImplementedError()
@@ -81,10 +86,9 @@ class GameState:
 
     def is_valid(self, move):
         return not self.is_over() and (
-            move.is_pass or move.is_resign or (
-            self.board[move.point] is None and
-            not self.is_suicide(self.next_player, move) and
-            not self.is_ko(self.next_player, move)))
+            move.is_pass or move.is_resign or (self.board[move.point] is None and
+                                               not self.is_suicide(self.next_player, move) and
+                                               not self.is_ko(self.next_player, move)))
 
     def is_over(self):
         if self.last_move is None:
@@ -109,7 +113,11 @@ class GameState:
 
         return moves
 
-    def winner(self, komi):
+    @property
+    def winner(self):
         assert self.is_over()
+        return self.winner_with_score(Score.compute(self))
 
-        return self.next_player if self.last_move.is_resign else Score.compute(self, komi).winner
+    def winner_with_score(self, score):
+        assert self.is_over()
+        return self.next_player if self.last_move.is_resign else score.winner

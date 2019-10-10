@@ -1,10 +1,13 @@
+import random
+
 from dlgo.agents.base import Agent
 from dlgo.gotypes import Player, Point
+from dlgo.scoring import Score
 
 MAX_SCORE = (1 << 15) - 1
 
 
-def position_score_heuristic(game):
+def capture_difference(game):
     black = 0
     white = 0
 
@@ -21,13 +24,18 @@ def position_score_heuristic(game):
     return diff if game.next_player == Player.black else -diff
 
 
+def area_difference(game):
+    score = Score.compute(game)
+    return score.winning_margin if score.winner == game.next_player else -score.winning_margin
+
+
 class MinimaxAgent(Agent):
-    def __init__(self, komi=7.5, depth=2):
-        self.komi = komi
+    def __init__(self, depth, heuristic=capture_difference):
         self.search_depth = depth
+        self.position_evaluation_function = heuristic
 
     def select_move(self, game):
-        best_move = None
+        best_moves = []
         best_score = -MAX_SCORE
 
         black = -MAX_SCORE
@@ -35,28 +43,27 @@ class MinimaxAgent(Agent):
 
         for possible_move in game.possible_moves():
             next_state = game.apply_move(possible_move)
-            opponent_result = self.best_result(next_state, 0, black, white)
-            result = -opponent_result
+            result = -self.best_result(next_state, 0, black, white)
 
-            if (not best_move) or result > best_score:
-                best_move = possible_move
+            if result > best_score:
+                best_moves = [possible_move]
                 best_score = result
 
                 if game.next_player == Player.black:
                     black = best_score
                 elif game.next_player == Player.white:
                     white = best_score
+            elif result == best_score:
+                best_moves.append(possible_move)
 
-        return best_move
+        return random.choice(best_moves)
 
     def best_result(self, game, depth, black, white):
         if game.is_over():
-            return MAX_SCORE if game.winner(self.komi) == game.next_player else -MAX_SCORE
+            return MAX_SCORE if game.winner == game.next_player else -MAX_SCORE
 
         if depth == self.search_depth:
-            # score = Score.compute(game, self.komi)
-            # return score.winning_margin if score.winner == game.next_player else -score.winning_margin
-            return position_score_heuristic(game)
+            return self.position_evaluation_function(game)
 
         best = -MAX_SCORE
         for possible_move in game.possible_moves():

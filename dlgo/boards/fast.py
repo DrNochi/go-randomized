@@ -1,8 +1,7 @@
-from copy import deepcopy, copy
+from copy import deepcopy
 
-from dlgo.boards.base import Board, GameState
-from dlgo.boards.normal import FrozenGoString
-from dlgo.boards.zobrist import HASH_CODE, HASH_CODE_EMPTY
+from dlgo.boards.normal import FrozenGoString, ZobristBoard, NormalGameState
+from dlgo.boards.zobrist import HASH_CODE
 from dlgo.gotypes import Player, Point
 
 neighbor_tables = {}
@@ -39,11 +38,10 @@ def get_adjacency_tables(rows, cols):
     return neighbor_table, corner_table
 
 
-class FastBoard(Board):
+class FastBoard(ZobristBoard):
     def __init__(self, rows, cols):
         super().__init__(rows, cols)
 
-        self._hash = HASH_CODE_EMPTY
         self._neighbor_table, self._corner_table = get_adjacency_tables(
             rows, cols)
 
@@ -84,10 +82,6 @@ class FastBoard(Board):
             else:
                 self._capture_string(opponent_string)
 
-    def _replace_string(self, string):
-        for point in string.stones:
-            self[point] = string
-
     def _capture_string(self, string):
         for point in string.stones:
             for neighbor in self._neighbor_table[point]:
@@ -120,34 +114,11 @@ class FastBoard(Board):
                 return True
         return False
 
-    @property
-    def hash(self):
-        return self._hash
 
-    def __eq__(self, other):
-        return (isinstance(other, FastBoard) and
-                self.rows == other.rows and
-                self.cols == other.cols and
-                self._hash == other._hash)
-
-    def __deepcopy__(self, memodict=None):
-        copied = FastBoard(self.rows, self.cols)
-        copied._grid = copy(self._grid)
-        copied._hash = self._hash
-        return copied
-
-
-class FastGameState(GameState):
-    def __init__(self, board, next_player, prev_state, move):
-        super().__init__(board, next_player, prev_state, move)
-
-        self.prev_states = prev_state.prev_states | frozenset(
-            (prev_state.board.hash,)) if prev_state is not None else frozenset()
-
+class FastGameState(NormalGameState):
     @staticmethod
-    def new_game(board_size):
-        assert isinstance(board_size, int)
-        return FastGameState(FastBoard(board_size, board_size), Player.black, None, None)
+    def new_game(board_size, komi):
+        return FastGameState(FastBoard(board_size, board_size), Player.black, None, None, komi)
 
     def is_suicide(self, player, move):
         if not move.is_play:
@@ -162,4 +133,4 @@ class FastGameState(GameState):
         board = deepcopy(self.board)
         board.place_stone(player, move.point)
 
-        return board.hash in self.prev_states
+        return hash(board) in self.prev_states

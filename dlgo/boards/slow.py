@@ -20,7 +20,7 @@ class MutableGoString(GoString):
         return MutableGoString(self.owner, common_stones, self.liberties | string.liberties - common_stones)
 
 
-class SlowBoard(Board):
+class NaiveBoard(Board):
     def place_stone(self, player, point):
         assert self.is_on_board(point)
         assert self[point] is None
@@ -69,9 +69,9 @@ class SlowBoard(Board):
 
 class SlowGameState(GameState):
     @staticmethod
-    def new_game(board_size):
+    def new_game(board_size, komi):
         assert isinstance(board_size, int)
-        return SlowGameState(SlowBoard(board_size, board_size), Player.black, None, None)
+        return SlowGameState(NaiveBoard(board_size, board_size), Player.black, None, None, komi)
 
     def is_suicide(self, player, move):
         if not move.is_play:
