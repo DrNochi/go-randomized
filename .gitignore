@@ -1,8 +1,12 @@
 # Python
 __pycache__/
+venv/
 
 # VS Code
 .vscode/
 
 # PyCharm
 .idea/
+
+# Misc
+.cache/
