@@ -8,5 +8,6 @@ venv/
 # PyCharm
 .idea/
 
-# Misc
+# Temporary files
 .cache/
+tmp_*
