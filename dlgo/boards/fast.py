@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from dlgo.boards.normal import FrozenGoString, ZobristBoard, NormalGameState
 from dlgo.boards.zobrist import HASH_CODE
 from dlgo.gotypes import Player, Point
@@ -121,16 +119,7 @@ class FastGameState(NormalGameState):
         return FastGameState(FastBoard(board_size, board_size), Player.black, None, None, komi)
 
     def is_suicide(self, player, move):
-        if not move.is_play:
-            return False
-
-        return self.board.is_suicide(player, move.point)
+        return self.board.is_suicide(player, move.point) if move.is_play else False
 
     def is_ko(self, player, move):
-        if not move.is_play or not self.board.will_capture(player, move.point):
-            return False
-
-        board = deepcopy(self.board)
-        board.place_stone(player, move.point)
-
-        return hash(board) in self.prev_states
+        return super().is_ko(player, move) if self.board.will_capture(player, move.point) else False

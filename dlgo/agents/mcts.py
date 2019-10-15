@@ -52,7 +52,7 @@ class MCTSNode:
             self.wins += 1
 
         if self.parent is not None:
-            self.parent.propagate_result(win)
+            self.parent.propagate_result(not win)
 
     @property
     def fully_expanded(self):
@@ -105,11 +105,13 @@ class MCTSAgent(Agent):
             while not next_state.is_over():
                 next_state = next_state.apply_move(self.rollout_agent.select_move(next_state))
 
-            win = 1 if next_state.winner == game.next_player else 0
+            win = next_state.winner == node.parent.state.next_player
             while node is not None:
                 node.rollouts += 1
-                node.wins += win
+                if win:
+                    node.wins += 1
                 node = node.parent
+                win = not win
 
         best_move = None
         best_winning_fraction = -1
