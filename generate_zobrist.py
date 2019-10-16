@@ -1,4 +1,5 @@
 import random
+
 from dlgo.gotypes import Player, Point
 
 MAX63 = 0x7fffffffffffffff
@@ -12,7 +13,6 @@ for row in range(1, 20):
             table[Point(row, col), player] = code
 
 print('from dlgo.gotypes import Player, Point')
-print('')
 print('')
 print('HASH_CODE = {')
 for (pt, p), h in table.items():

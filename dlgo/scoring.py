@@ -1,4 +1,5 @@
 from collections import namedtuple
+
 from dlgo.gotypes import Player, Point
 
 
@@ -66,14 +67,16 @@ class Territory:
         return points, owners
 
 
-class GameResult(namedtuple('GameResult', 'black white komi')):
+class Score(namedtuple('Score', 'black white komi')):
+    @property
     def winner(self):
-        return Player.black if self.black > self.white + self.komi else Player.black
+        return Player.black if self.black > self.white + self.komi else Player.white
 
+    @property
     def winning_margin(self):
         return abs(self.black - self.white - self.komi)
 
     @staticmethod
-    def compute(game, komi):
+    def compute(game):
         territory = Territory.evaluate(game.board)
-        return GameResult(territory.black, territory.white, komi)
+        return Score(territory.black, territory.white, game.komi)

@@ -1,13 +1,23 @@
-from dlgo.agent.naive import RandomBot
-from dlgo.goboard_fast import GameState, Move
-from dlgo.gotypes import Player
-from dlgo.utils import print_board, print_move, point_from_coords
-from dlgo.scoring import GameResult
 import time
 
+from dlgo.agents.mcts import MCTSAgent, StandardMCTSAgent
+from dlgo.agents.minimax import MinimaxAgent
+from dlgo.agents.neural import NeuralAgent
+from dlgo.agents.random import FastRandomAgent, FastConstrainedRandomAgent
+from dlgo.boards.fast import FastGameState
+from dlgo.encoders.basic import OnePlaneEncoder
+from dlgo.gotypes import Player, Move
+from dlgo.scoring import Score
+from dlgo.utils import print_board, print_move, point_from_coords
 
 bots = {
-    "Random": RandomBot
+    "Random (total)": FastRandomAgent(),
+    "Random (constrained)": FastConstrainedRandomAgent(),
+    "Minimax": MinimaxAgent(2),
+    "MCTS (random)": MCTSAgent(100),
+    "MCTS (UCT)": StandardMCTSAgent(100, 0.5),
+    "Neural (9x9)": NeuralAgent("nn_models/one_plane_9x9.h5", OnePlaneEncoder(9, 9)),
+    # "Neural (19x19)": NeuralAgent("nn_models/seven_plane_19x19.h5", SevenPlaneEncoder(19, 19))
 }
 
 
@@ -45,7 +55,7 @@ def choose_bot(prompt):
         i_to_key[i] = b
         i += 1
     print("")
-    return bots[i_to_key[int(choose())]]()
+    return bots[i_to_key[int(choose())]]
 
 
 clear_terminal()
@@ -88,7 +98,6 @@ elif game_mode == 2:
 elif game_mode == 3:
     pass
 
-
 clear_terminal()
 print_header()
 board_size = int(input("Choose a board size: "))
@@ -98,7 +107,7 @@ slow_down_bot = True
 if game_mode != 3:
     slow_down_bot = input("Slow down bot (y/n): ") == "y"
 
-game = GameState.new_game(board_size)
+game = FastGameState.new_game(board_size, komi)
 
 while not game.is_over():
     print_game_state(game)
@@ -123,4 +132,7 @@ while not game.is_over():
     game = game.apply_move(move)
 
 print_game_state(game)
-print(GameResult.compute(game, komi))
+
+score = Score.compute(game)
+print("Score: ", score)
+print("Winner: ", game.winner_with_score(score))

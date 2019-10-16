@@ -1,14 +1,15 @@
-from dlgo.agent.naive import RandomBot
-from dlgo.goboard_fast import GameState, Move
-from dlgo.gotypes import Player
-from dlgo.utils import print_board, print_move, point_from_coords
-from dlgo.scoring import GameResult
 import time
+
+from dlgo.agents.random import FastConstrainedRandomAgent
+from dlgo.boards.fast import FastGameState
+from dlgo.gotypes import Player, Move
+from dlgo.scoring import Score
+from dlgo.utils import print_board, print_move, point_from_coords
 
 
 def main():
-    game = GameState.new_game(9)
-    bot = RandomBot()
+    game = FastGameState.new_game(9, 7.5)
+    bot = FastConstrainedRandomAgent()
 
     while not game.is_over():
         time.sleep(0.3)
@@ -31,7 +32,7 @@ def main():
         print_move(game.next_player, move)
         game = game.apply_move(move)
 
-    print(GameResult.compute(game, 7.5))
+    print(Score.compute(game))
 
 
 if __name__ == '__main__':
