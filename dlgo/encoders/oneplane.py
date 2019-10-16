@@ -1,10 +1,10 @@
 import numpy as np
 
-from dlgo.encoders.base import Encoder
-from dlgo.gotypes import Point, Move
+from dlgo.encoders.base import OneHotMoveEncoder
+from dlgo.gotypes import Point
 
 
-class OnePlaneEncoder(Encoder):
+class OnePlaneEncoder(OneHotMoveEncoder):
     def encode_board(self, game):
         assert game.board.rows == self.rows and game.board.cols == self.cols
 
@@ -19,12 +19,6 @@ class OnePlaneEncoder(Encoder):
 
         return board_matrix
 
-    def encode_move(self, move):
-        assert move.is_play
-        move_vector = np.zeros(self.move_shape)
-        move_vector[(move.point.row - 1) * self.cols + move.point.col - 1] = 1
-        return move_vector
-
-    def decode_move(self, encoded):
-        index = np.argmax(encoded)
-        return Move.play(Point((index // self.cols) + 1, (index % self.cols) + 1))
+    @property
+    def board_shape(self):
+        return self.rows, self.cols
