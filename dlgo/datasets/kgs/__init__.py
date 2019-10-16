@@ -12,7 +12,7 @@ from dlgo.datasets.base import DataSet
 from dlgo.datasets.kgs.generator import KGSDataGenerator
 from dlgo.datasets.kgs.index import KGSIndex
 from dlgo.datasets.kgs.sampling import Sampler
-from dlgo.encoders.oneplane import OnePlaneEncoder
+from dlgo.encoders.basic import OnePlaneEncoder
 from dlgo.gotypes import Point, Move, Player
 
 

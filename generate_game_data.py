@@ -4,7 +4,7 @@ import numpy as np
 
 from dlgo.agents.mcts import StandardMCTSAgent
 from dlgo.boards.fast import FastGameState
-from dlgo.encoders.oneplane import OnePlaneEncoder
+from dlgo.encoders.basic import OnePlaneEncoder
 from dlgo.utils import print_move, print_board
 
 
