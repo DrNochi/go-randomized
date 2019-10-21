@@ -37,12 +37,12 @@ class KGSIndex:
         """
         self.kgs_url = kgs_url
         self.index_page = index_page
+        self.data_directory = data_directory
         # <start added> #################################
         if not os.path.isdir(self.data_directory):
             os.makedirs(self.data_directory)
         self.index_page = os.path.join(self.data_directory, self.index_page)
         # <end added> ###################################
-        self.data_directory = data_directory
         self.file_info = []
         self.urls = []
         self.load_index()  # Load index on creation
