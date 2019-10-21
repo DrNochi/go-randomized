@@ -2,7 +2,7 @@ import time
 
 from dlgo.agents.mcts import MCTSAgent, StandardMCTSAgent
 from dlgo.agents.minimax import MinimaxAgent
-from dlgo.agents.neural import NeuralAgent
+from dlgo.agents.neural import ConstrainedPolicyAgent
 from dlgo.agents.random import FastRandomAgent, FastConstrainedRandomAgent
 from dlgo.boards.fast import FastGameState
 from dlgo.encoders.basic import OnePlaneEncoder
@@ -16,7 +16,8 @@ bots = {
     "Minimax": MinimaxAgent(2),
     "MCTS (random)": MCTSAgent(100),
     "MCTS (UCT)": StandardMCTSAgent(100, 0.5),
-    "Neural (9x9)": NeuralAgent("nn_models/one_plane_9x9.h5", OnePlaneEncoder(9, 9)),
+    "Neural Policy (9x9)": ConstrainedPolicyAgent("nn_models/one_plane_9x9.h5", OnePlaneEncoder(9, 9)),
+    "Neural Policy (9x9, sampled)": ConstrainedPolicyAgent("nn_models/one_plane_9x9.h5", OnePlaneEncoder(9, 9), True),
     # "Neural (19x19)": NeuralAgent("nn_models/seven_plane_19x19.h5", SevenPlaneEncoder(19, 19))
 }
 

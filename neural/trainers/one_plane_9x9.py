@@ -12,6 +12,8 @@ y_train, y_test = y[:train_samples], y[train_samples:]
 rows = x.shape[1]
 cols = x.shape[2]
 
+"""
+# v1 ##############################
 model = keras.models.Sequential([
     keras.layers.Input(x.shape[1:]),
     keras.layers.Reshape((rows, cols, 1)),
@@ -23,6 +25,28 @@ model = keras.models.Sequential([
     keras.layers.Flatten(),
     keras.layers.Dense(512, activation='relu'),
     keras.layers.Dropout(0.5),
+    keras.layers.Dense(rows * cols, activation='softmax')])
+model.summary()
+"""
+
+# v2 ############################
+model = keras.models.Sequential([
+    keras.layers.Input(x.shape[1:]),
+    keras.layers.Reshape((rows, cols, 1)),
+    keras.layers.Conv2D(96, (3, 3), activation='relu', padding='same'),
+    keras.layers.Dropout(0.2),
+    keras.layers.Conv2D(72, (3, 3), activation='relu', padding='same'),
+    keras.layers.Dropout(0.2),
+    keras.layers.Conv2D(48, (3, 3), activation='relu', padding='same'),
+    keras.layers.Dropout(0.2),
+    keras.layers.Conv2D(48, (3, 3), activation='relu', padding='same'),
+    keras.layers.Dropout(0.2),
+    keras.layers.Conv2D(48, (3, 3), activation='relu', padding='same'),
+    keras.layers.MaxPooling2D((2, 2)),
+    keras.layers.Dropout(0.5),
+    keras.layers.Flatten(),
+    # keras.layers.Dense(512, activation='relu'),
+    # keras.layers.Dropout(0.5),
     keras.layers.Dense(rows * cols, activation='softmax')])
 model.summary()
 

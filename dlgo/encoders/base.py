@@ -13,6 +13,15 @@ class Encoder:
     def decode_move(self, encoded):
         raise NotImplementedError()
 
+    def decode_moves(self, encoded):
+        raise NotImplementedError()
+
+    def sample_moves(self, encoded):
+        raise NotImplementedError()
+
+    def get_move(self, *args):
+        raise NotImplementedError()
+
     @property
     def board_shape(self):
         raise NotImplementedError()
@@ -34,7 +43,15 @@ class OneHotMoveEncoder(Encoder):
         return move_vector
 
     def decode_move(self, encoded):
-        index = np.argmax(encoded)
+        return self.get_move(encoded.argmax())
+
+    def decode_moves(self, encoded):
+        return np.argsort(encoded)[::-1]
+
+    def sample_moves(self, encoded):
+        return np.random.choice(np.arange(len(encoded)), len(encoded), replace=False, p=encoded)
+
+    def get_move(self, index):
         return Move.play(Point((index // self.cols) + 1, (index % self.cols) + 1))
 
     @property
