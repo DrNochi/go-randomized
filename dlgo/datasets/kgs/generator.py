@@ -1,32 +1,31 @@
-import glob
-import os
-
 import numpy as np
 
 from dlgo.datasets.base import DataGenerator
 
 
 class KGSDataGenerator(DataGenerator):
-    def __init__(self, data_directory, data_type, sample_data):
+    def __init__(self, data_files):
         super().__init__()
-        self.data_directory = data_directory
-        self.data_type = data_type
-        self.sample_data = sample_data
+        self.data_files = data_files
+
+    def generate_game(self):
+        for base_filename in self.data_files:
+            features_file = base_filename + '_features.npy'
+            labels_file = base_filename + '_labels.npy'
+            yield np.load(features_file), np.load(labels_file)
 
     def generate(self, batch_size):
-        archives = set(file_name for file_name, index in self.sample_data)
+        gen = self.generate_game()
 
-        for archive in archives:
-            data_file = archive.replace('.tar.gz', '') + self.data_type
-            file_pattern = os.path.join(self.data_directory, data_file + '_features_*.npy')
+        features, labels = next(gen)
+        for feature_chunk, label_chunk in gen:
+            features = np.concatenate((features, feature_chunk), axis=0)
+            labels = np.concatenate((labels, label_chunk), axis=0)
 
-            for feature_file in glob.glob(file_pattern):
-                label_file = feature_file.replace('features', 'labels')
+            while features.shape[0] >= batch_size:
+                feature_batch, features = features[:batch_size], features[batch_size:]
+                label_batch, labels = labels[:batch_size], labels[batch_size:]
+                yield feature_batch, label_batch
 
-                features = np.load(feature_file)
-                labels = np.load(label_file)
-
-                while features.shape[0] >= batch_size:
-                    feature_batch, features = features[:batch_size], features[batch_size:]
-                    label_batch, labels = labels[:batch_size], labels[batch_size:]
-                    yield feature_batch, label_batch
+    def num_games(self):
+        return len(self.data_files)

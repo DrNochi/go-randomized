@@ -30,6 +30,10 @@ class Encoder:
     def move_shape(self):
         raise NotImplementedError()
 
+    @property
+    def can_encode_pass(self):
+        raise NotImplementedError()
+
 
 class OneHotMoveEncoder(Encoder):
     def __init__(self, rows, cols):
@@ -57,6 +61,10 @@ class OneHotMoveEncoder(Encoder):
     @property
     def move_shape(self):
         return self.rows * self.cols,
+
+    @property
+    def can_encode_pass(self):
+        return False
 
     def encode_board(self, game):
         raise NotImplementedError()

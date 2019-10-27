@@ -1,8 +1,8 @@
-import glob
 import gzip
 import os
 import shutil
 import tarfile
+import uuid
 
 import numpy as np
 from sgfmill.sgf import Sgf_game
@@ -17,170 +17,169 @@ from dlgo.gotypes import Point, Move, Player
 
 
 class KGSDataSet(DataSet):
-    def __init__(self, encoder=OnePlaneEncoder(19, 19), data_directory='.cache/datasets/kgs'):
+    def __init__(self, encoder=OnePlaneEncoder(19, 19), cache='.cache/datasets/kgs'):
         self.encoder = encoder
-        self.data_dir = data_directory
+        self.cache = cache
+
+        if not os.path.isdir(cache):
+            os.makedirs(cache)
+
+        self.index = KGSIndex(os.path.join(self.cache, 'index'))
+        self.sampler = Sampler(self.index)
+
+        self._setup_data_cache()
+
+    def _setup_data_cache(self):
+        configuration = str(type(self.encoder))
+        configuration_id = None
+
+        file = os.path.join(self.cache, 'configurations')
+        if os.path.isfile(file):
+            with open(file, 'r') as configs:
+                line = configs.readline()
+                while line != '':
+                    config, config_id = line.split('|')
+                    if config == configuration:
+                        configuration_id = config_id
+                        break
+                    line = configs.readline()
+        if configuration_id is None:
+            configuration_id = uuid.uuid4()
+            with open(file, 'a') as configs:
+                configs.write('{}|{}'.format(configuration, configuration_id))
+
+        self.data_cache = os.path.join(self.cache, str(configuration_id))
+
+        if not os.path.isdir(self.data_cache):
+            os.makedirs(self.data_cache)
 
     def load_data(self, data_type, samples, use_generator=False):
-        kgs = KGSIndex(data_directory=self.data_dir)
-        kgs.download_files()
-
-        sampler = Sampler(data_dir=self.data_dir)
-        sample_data = sampler.draw_data(data_type, samples)
+        sample_data = self.sampler.draw_data(data_type, samples)
 
         archives = set()
-        samples_by_archive = {}
+        games_by_archive = {}
 
-        for filename, sample in sample_data:
+        for filename, game in sample_data:
             archives.add(filename)
-            if filename not in samples_by_archive:
-                samples_by_archive[filename] = []
-            samples_by_archive[filename].append(sample)
-
-        for archive in archives:
-            base_name = archive.replace('.tar.gz', '')
-            data_file = base_name + data_type
-            if not os.path.isfile(os.path.join(self.data_dir, data_file)):
-                self._process_zip(archive, data_file, samples_by_archive[archive])
-
-        return (KGSDataGenerator(self.data_dir, data_type, sample_data) if use_generator
-                else self._consolidate_chunks(data_type, sample_data))
-
-    def _unzip_data(self, archive):
-        archive_path = os.path.join(self.data_dir, archive)
-        decompressed_archive = archive_path[:-3]
-
-        with gzip.open(archive_path) as gz:
-            with open(decompressed_archive, 'wb') as tar:
-                shutil.copyfileobj(gz, tar)
-
-        return decompressed_archive
-
-    def _process_zip(self, archive, data_file, samples):
-        decompressed_archive = self._unzip_data(archive)
-        tar = tarfile.open(decompressed_archive)
-        game_files = tar.getnames()
-
-        examples = self._count_moves(tar, samples, game_files)
-        features = np.zeros((examples,) + self.encoder.board_shape)
-        labels = np.zeros((examples,) + self.encoder.move_shape)
-
-        counter = 0
-        for sample in samples:
-            game_file = game_files[sample + 1]
-
-            if not game_file.endswith('.sgf'):
-                raise ValueError(game_file + ' is not a valid sgf')
-
-            sgf_content = tar.extractfile(game_file).read()
-            sgf = Sgf_game.from_bytes(sgf_content)
-
-            game, first_move_done = self._get_starting_position(sgf)
-
-            for sgf_node in sgf.main_sequence_iter():
-                color, point = sgf_node.get_move()
-
-                if color is not None:
-                    try:
-                        assert game.next_player == (Player.black if color == 'b' else Player.white)
-
-                        move = Move.play(Point(point[0] + 1, point[1] + 1)) if point is not None else Move.pass_turn()
-
-                        if first_move_done and move.is_play:
-                            features[counter] = self.encoder.encode_board(game)
-                            labels[counter] = self.encoder.encode_move(move)
-                            counter += 1
-
-                        game = game.apply_move(move)
-                    except AssertionError:
-                        print('>>> Corrupted sgf: {} {}'.format(archive, game_file))
-                        if first_move_done and point is not None:
-                            counter += 1
-
-                    first_move_done = True
-
-        feature_file = os.path.join(self.data_dir, data_file + '_features_%d')
-        label_file = os.path.join(self.data_dir, data_file + '_labels_%d')
-
-        chunk = 0
-        chunk_size = 1024
-        while features.shape[0] >= chunk_size:
-            current_features, features = features[:chunk_size], features[chunk_size:]
-            current_labels, labels = labels[:chunk_size], labels[chunk_size:]
-
-            np.save(feature_file % chunk, current_features)
-            np.save(label_file % chunk, current_labels)
-
-            chunk += 1
-
-        # with open(os.path.join(self.data_dir, data_file), 'w') as file:
-        #     file.write('generated {} chunks'.format(chunk))
-
-    def _consolidate_chunks(self, data_type, sample_data):
-        archives = set(file_name for file_name, sample in sample_data)
+            if filename not in games_by_archive:
+                games_by_archive[filename] = []
+            games_by_archive[filename].append(game)
 
         data_files = []
         for archive in archives:
-            data_file = archive.replace('.tar.gz', '') + data_type
-            data_files.append(data_file)
+            data_files += self._process_archive(archive, games_by_archive[archive])
 
-        features_per_chunk = []
-        labels_per_chunk = []
-        for data_file in data_files:
-            base_name = data_file.replace('.tar.gz', '')
-            file_pattern = os.path.join(self.data_dir, base_name + '_features_*.npy')
+        return (KGSDataGenerator(data_files) if use_generator
+                else self._consolidate_data(data_files))
 
-            for feature_file in glob.glob(file_pattern):
-                label_file = feature_file.replace('features', 'labels')
+    def _unzip_data(self, archive):
+        path = os.path.join(self.index.cache, archive)
+        decompressed_path = path[:-3]
 
-                chunk_features = np.load(feature_file)
-                chunk_labels = np.load(label_file)
+        if not os.path.isfile(decompressed_path):
+            with gzip.open(path) as compressed:
+                with open(decompressed_path, 'wb') as decompressed:
+                    shutil.copyfileobj(compressed, decompressed)
 
-                features_per_chunk.append(chunk_features)
-                labels_per_chunk.append(chunk_labels)
+        return decompressed_path
 
-        features = np.concatenate(features_per_chunk, axis=0)
-        labels = np.concatenate(labels_per_chunk, axis=0)
+    def _process_archive(self, archive, games):
+        archive_data_cache = os.path.join(self.data_cache, archive[:-7])
+        if not os.path.isdir(archive_data_cache):
+            os.makedirs(archive_data_cache)
 
-        # np.save(os.path.join(self.data_dir, 'features_{}.npy'.format(data_type)), features)
-        # np.save(os.path.join(self.data_dir, 'labels_{}.npy'.format(data_type)), labels)
+        decompressed = self._unzip_data(archive)
+        tar = tarfile.open(decompressed)
+        game_files = tar.getnames()
 
-        return features, labels
+        return [self._process_game(tar, game_files[i + 1]) for i in games]
+
+    def _process_game(self, archive, game_file):
+        base_filename = os.path.join(self.data_cache,
+                                     os.path.basename(archive.name)[:-4],
+                                     os.path.basename(game_file)[:-4])
+        features_file = base_filename + '_features.npy'
+        labels_file = base_filename + '_labels.npy'
+        if os.path.isfile(features_file) and os.path.isfile(labels_file):
+            return base_filename
+
+        assert game_file.endswith('sgf')
+
+        positions = self._count_moves(archive, game_file)
+        features = np.zeros((positions,) + self.encoder.board_shape)
+        labels = np.zeros((positions,) + self.encoder.move_shape)
+
+        sgf_content = archive.extractfile(game_file).read()
+        sgf = Sgf_game.from_bytes(sgf_content)
+
+        game = self._get_starting_position(sgf)
+
+        counter = 0
+        for node in sgf.main_sequence_iter():
+            color, point = node.get_move()
+
+            if color is not None:
+                try:
+                    assert game.next_player == (Player.black if color == 'b' else Player.white)
+
+                    move = Move.play(Point(point[0] + 1, point[1] + 1)) if point is not None else Move.pass_turn()
+
+                    if move.is_play or self.encoder.can_encode_pass:
+                        features[counter] = self.encoder.encode_board(game)
+                        labels[counter] = self.encoder.encode_move(move)
+                        counter += 1
+
+                    game = game.apply_move(move)
+                except AssertionError:
+                    print('>>> Corrupted sgf: {} {}'.format(archive, game_file))
+
+        np.save(features_file, features)
+        np.save(labels_file, labels)
+
+        return base_filename
+
+    def _count_moves(self, archive, game_file):
+        if not game_file.endswith('.sgf'):
+            raise ValueError(game_file + ' is not a valid sgf')
+
+        sgf_content = archive.extractfile(game_file).read()
+        sgf = Sgf_game.from_bytes(sgf_content)
+
+        moves = 0
+        for node in sgf.main_sequence_iter():
+            color, point = node.get_move()
+            if color is not None and (point is not None or self.encoder.can_encode_pass):
+                moves += 1
+
+        return moves
 
     @staticmethod
     def _get_starting_position(sgf):
         if sgf.get_handicap() is not None and sgf.get_handicap() != 0:
-            board = FastBoard(19, 19)
+            board = FastBoard(sgf.get_size(), sgf.get_size())
 
             for setup in sgf.get_root().get_setup_stones():
-                for move in setup:
-                    row, col = move
+                for point in setup:
+                    row, col = point
                     board.place_stone(Player.black, Point(row + 1, col + 1))
 
-            return FastGameState(board, Player.white, None, None, sgf.get_komi()), True
+            return FastGameState(board, Player.white, None, None, sgf.get_komi())
         else:
-            return FastGameState.new_game(19, sgf.get_komi()), False
+            return FastGameState.new_game(sgf.get_size(), sgf.get_komi())
 
-    def _count_moves(self, archive, samples, game_files):
-        total = 0
+    @staticmethod
+    def _consolidate_data(data_files):
+        features_per_chunk = []
+        labels_per_chunk = []
 
-        for sample in samples:
-            game_file = game_files[sample + 1]
+        for base_filename in data_files:
+            features_file = base_filename + '_features.npy'
+            labels_file = base_filename + '_labels.npy'
 
-            if game_file.endswith('.sgf'):
-                sgf_content = archive.extractfile(game_file).read()
-                sgf = Sgf_game.from_bytes(sgf_content)
-                game, first_move_done = self._get_starting_position(sgf)
+            features_per_chunk.append(np.load(features_file))
+            labels_per_chunk.append((np.load(labels_file)))
 
-                moves = 0
-                for node in sgf.main_sequence_iter():
-                    color, move = node.get_move()
-                    if color is not None:
-                        if first_move_done:
-                            moves += 1
-                        first_move_done = True
-                total += moves
-            else:
-                raise ValueError(game_file + ' is not a valid sgf')
+        features = np.concatenate(features_per_chunk, axis=0)
+        labels = np.concatenate(labels_per_chunk, axis=0)
 
-        return total
+        return features, labels
