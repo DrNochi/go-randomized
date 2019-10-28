@@ -25,7 +25,7 @@ class ParallelKGSDataSet(KGSDataSet):
     def _invoke_workers(self, archives, games_by_archive):
         args = [(self, archive, games_by_archive[archive]) for archive in archives]
         with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
-            return [gf for al in pool.map(self._worker, args) for gf in al]
+            return [game for archive in pool.map(self._worker, args) for game in archive]
 
     @staticmethod
     def _worker(args):

@@ -101,7 +101,7 @@ class KGSDataSet(DataSet):
         features_file = base_filename + '_features.npy'
         labels_file = base_filename + '_labels.npy'
         if os.path.isfile(features_file) and os.path.isfile(labels_file):
-            return base_filename
+            return base_filename, np.load(features_file).shape[0]
 
         assert game_file.endswith('sgf')
 
@@ -136,7 +136,7 @@ class KGSDataSet(DataSet):
         np.save(features_file, features)
         np.save(labels_file, labels)
 
-        return base_filename
+        return base_filename, positions
 
     def _count_moves(self, archive, game_file):
         if not game_file.endswith('.sgf'):

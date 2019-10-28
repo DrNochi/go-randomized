@@ -8,7 +8,7 @@ from dlgo.datasets.base import DataGenerator
 
 class KGSDataGenerator(DataGenerator):
     def __init__(self, data_directory, data_type, sample_data):
-        super().__init__()
+        self._length = {}
         self.data_directory = data_directory
         self.data_type = data_type
         self.sample_data = sample_data
@@ -30,3 +30,11 @@ class KGSDataGenerator(DataGenerator):
                     feature_batch, features = features[:batch_size], features[batch_size:]
                     label_batch, labels = labels[:batch_size], labels[batch_size:]
                     yield feature_batch, label_batch
+
+    def length(self, batch_size):
+        if batch_size not in self._length:
+            self._length[batch_size] = 0
+            for _ in self.generate(batch_size):
+                self._length[batch_size] += 1
+
+        return self._length[batch_size]

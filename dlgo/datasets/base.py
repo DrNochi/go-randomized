@@ -4,9 +4,6 @@ class DataSet:
 
 
 class DataGenerator:
-    def __init__(self):
-        self._length = None
-
     def generate(self, batch_size):
         raise NotImplementedError()
 
@@ -16,10 +13,7 @@ class DataGenerator:
                 yield item
 
     def length(self, batch_size):
-        if self._length is not None:
-            return self._length
-        else:
-            self._length = 0
-            for _ in self.generate(batch_size):
-                self._length += 1
-            return self._length
+        raise NotImplementedError()
+
+    def __len__(self):
+        return self.length(1)
