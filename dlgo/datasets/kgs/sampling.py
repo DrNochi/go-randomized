@@ -17,7 +17,8 @@ class Sampler:
             random.seed(seed)
 
     def draw_data(self, dtype, samples):
-        print('>>> Drawing {} samples from {} games'.format(samples, len(self._games)))
+        print('>>> Drawing {} {} samples from {} games'.format(samples if samples is not None else 'all',
+                                                               dtype, len(self._games)))
 
         if dtype == 'test':
             if samples is None:
