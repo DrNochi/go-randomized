@@ -1,8 +1,8 @@
 from sgfmill.sgf import Sgf_game
 
 from dlgo.boards.fast import FastGameState
+from dlgo.frontend.cmd import print_move, print_board
 from dlgo.gotypes import Player, Move, Point
-from dlgo.utils import print_move, print_board
 
 sgf_content = "(;GM[1]FF[4]SZ[9];B[ee];W[ef];B[ff];W[df];B[fe];W[fc];B[ec];W[gd];B[fb])"
 sgf_game = Sgf_game.from_string(sgf_content)

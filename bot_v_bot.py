@@ -2,9 +2,9 @@ import time
 
 from dlgo.agents.random import FastConstrainedRandomAgent
 from dlgo.boards.fast import FastGameState
+from dlgo.frontend.cmd import print_move, print_board
 from dlgo.gotypes import Player
 from dlgo.scoring import Score
-from dlgo.utils import print_board, print_move
 
 
 def main():

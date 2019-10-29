@@ -6,9 +6,10 @@ from dlgo.agents.neural import ConstrainedPolicyAgent
 from dlgo.agents.random import FastRandomAgent, FastConstrainedRandomAgent
 from dlgo.boards.fast import FastGameState
 from dlgo.encoders.basic import OnePlaneEncoder
+from dlgo.frontend.cmd import print_move, print_board
+from dlgo.frontend.utils import point_from_coords
 from dlgo.gotypes import Player, Move
 from dlgo.scoring import Score
-from dlgo.utils import print_board, print_move, point_from_coords
 
 bots = {
     "Random (total)": FastRandomAgent(),

@@ -1,18 +1,11 @@
-from dlgo.gotypes import Player, Point
+from dlgo.frontend.utils import coords_from_point, int_to_char
+from dlgo.gotypes import Point, Player
 
 player_chars = {
     None: ' . ',
     Player.black: ' x ',
     Player.white: ' o ',
 }
-
-
-def int_to_char(n):
-    return chr(ord('a') + n - 1)
-
-
-def char_to_int(c):
-    return ord(c) - ord('a') + 1
 
 
 def print_move(player, move):
@@ -40,13 +33,3 @@ def print_board(board):
     for col in range(1, board.cols + 1):
         print(int_to_char(col) + '  ', end='')
     print('')
-
-
-def point_from_coords(coords):
-    col = char_to_int(coords[0])
-    row = int(coords[1:])
-    return Point(row, col)
-
-
-def coords_from_point(point):
-    return '{}{}'.format(int_to_char(point.col), point.row)

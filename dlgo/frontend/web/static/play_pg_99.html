@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Board</title>
+
+    <link href="style.css" rel="stylesheet">
+
+    <!-- <script src="iframeSizer.contentWindow.min.js" defer></script> -->
+
+    <script>
+        var BOARD_SIZE = 9;
+        var BOT_NAME = 'pg';
+
+    </script>
+
+    <script defer src="jgoboard-latest.js"></script>
+    <script defer src="large/board.js"></script>
+    <script defer src="game.js"></script>
+</head>
+
+<body>
+<div>Engine: Policy gradient learning</div>
+<div><a href="#" onclick="resetGame(event);">New game</a></div>
+<div id="board"></div>
+<div>
+    <div id="status">Black to play</div>
+    <div id="diagnostics"></div>
+    <div class="loader" id="spinner" style="display: none"></div>
+</div>
+</body>
+
+</html>

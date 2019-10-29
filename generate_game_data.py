@@ -5,7 +5,7 @@ import numpy as np
 from dlgo.agents.mcts import StandardMCTSAgent
 from dlgo.boards.fast import FastGameState
 from dlgo.encoders.basic import OnePlaneEncoder
-from dlgo.utils import print_move, print_board
+from dlgo.frontend.cmd import print_move, print_board
 
 
 def generate_game_data(board_size, komi, rollouts, temperature, max_moves):
