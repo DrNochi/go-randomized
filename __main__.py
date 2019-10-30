@@ -5,7 +5,7 @@ from dlgo.agents.minimax import MinimaxAgent
 from dlgo.agents.neural import ConstrainedPolicyAgent
 from dlgo.agents.random import FastRandomAgent, FastConstrainedRandomAgent
 from dlgo.boards.fast import FastGameState
-from dlgo.encoders.basic import OnePlaneEncoder
+from dlgo.encoders.basic import OnePlaneEncoder, SevenPlaneEncoder
 from dlgo.frontend.cmd import print_move, print_board
 from dlgo.frontend.utils import point_from_coords
 from dlgo.gotypes import Player, Move
@@ -19,7 +19,7 @@ bots = {
     "MCTS (UCT)": StandardMCTSAgent(100, 0.5),
     "Neural Policy (9x9)": ConstrainedPolicyAgent("nn_models/one_plane_9x9.h5", OnePlaneEncoder(9, 9)),
     "Neural Policy (9x9, sampled)": ConstrainedPolicyAgent("nn_models/one_plane_9x9.h5", OnePlaneEncoder(9, 9), True),
-    # "Neural (19x19)": NeuralAgent("nn_models/seven_plane_19x19.h5", SevenPlaneEncoder(19, 19))
+    "Neural Policy (19x19)": ConstrainedPolicyAgent("nn_models/seven_plane_19x19.best.h5", SevenPlaneEncoder(19, 19))
 }
 
 
@@ -124,8 +124,7 @@ while not game.is_over():
         else:
             point = point_from_coords(human_move.strip())
             move = Move.play(point)
-        if not game.is_valid(move):
-            raise Exception("Invalid move!")
+        assert game.is_valid(move)
     else:
         if slow_down_bot:
             time.sleep(0.3)

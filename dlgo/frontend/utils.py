@@ -1,4 +1,10 @@
-from dlgo.gotypes import Point
+from dlgo.gotypes import Point, Player
+
+player_chars = {
+    None: ' . ',
+    Player.black: ' x ',
+    Player.white: ' o ',
+}
 
 column_chars = 'ABCDEFGHJKLMNOPQRSTUVWXZY'
 
@@ -19,3 +25,22 @@ def point_from_coords(coords):
 
 def coords_from_point(point):
     return '{}{}'.format(int_to_char(point.col), point.row)
+
+
+def format_board(board):
+    result = ''
+    for row in range(board.rows, 0, -1):
+        offset = ' ' if row <= 9 else ''
+
+        line = []
+        for col in range(1, board.cols + 1):
+            player = board.get_owner(Point(row, col))
+            line.append(player_chars[player])
+
+        result += '{}{} {}\n'.format(offset, row, ''.join(line))
+
+    result += '    '
+    for col in range(1, board.cols + 1):
+        result += int_to_char(col) + '  '
+
+    return result
