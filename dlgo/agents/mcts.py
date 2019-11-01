@@ -1,8 +1,11 @@
 import math
+import multiprocessing
 import random
 
 from dlgo.agents.base import Agent
 from dlgo.agents.random import FastConstrainedRandomAgent
+
+_worker_rollout_agent = None
 
 
 def select_random_child(node):
@@ -47,7 +50,6 @@ class MCTSNode:
         return child
 
     def propagate_result(self, win):
-        self.rollouts += 1
         if win:
             self.wins += 1
 
@@ -71,7 +73,7 @@ class MCTSNode:
             return
 
         if self.parent is None:
-            print('%sroot' % indent)
+            print('%sroot %d %.3f' % (indent, self.rollouts, self.winning_fraction))
         else:
             player = self.parent.state.next_player
             move = self.state.last_move
@@ -93,25 +95,43 @@ class MCTSAgent(Agent):
     def select_move(self, game):
         tree = MCTSNode(game)
 
-        for _ in range(self.rollouts):
-            node = tree
-            while node.fully_expanded and not node.is_leaf:
-                node = self.selection_policy(node)
+        worker_count = multiprocessing.cpu_count()
+        with multiprocessing.Pool(worker_count, initializer=self._worker_initializer,
+                                  initargs=(self.rollout_agent,)) as workers:
 
-            if not node.fully_expanded:
-                node = node.expand()
+            prepared = []
+            running = []
+            finished = []
 
-            next_state = node.state
-            while not next_state.is_over():
-                next_state = next_state.apply_move(self.rollout_agent.select_move(next_state))
+            rollout = 0
+            while rollout < self.rollouts:
+                if len(running) < worker_count and prepared:
+                    rollout += 1
+                    node = prepared.pop()
+                    running.append((
+                        workers.apply_async(self._rollout_worker, (node.state, node.parent.state.next_player)),
+                        node))
+                elif len(prepared) < worker_count:
+                    node = self._select_node(tree)
+                    prepared.append(node)
 
-            win = next_state.winner == node.parent.state.next_player
-            while node is not None:
-                node.rollouts += 1
-                if win:
-                    node.wins += 1
-                node = node.parent
-                win = not win
+                for win, node in finished:
+                    self._propagate_result(node, win)
+                finished.clear()
+
+                for job, node in running:
+                    if job.ready():
+                        win = job.get()
+                        finished.append((win, node))
+                running = [(job, node) for job, node in running if not job.ready()]
+
+            workers.close()
+            workers.join()
+
+            for win, node in finished:
+                self._propagate_result(node, win)
+            for job, node in running:
+                self._propagate_result(node, job.get())
 
         best_move = None
         best_winning_fraction = -1
@@ -124,6 +144,37 @@ class MCTSAgent(Agent):
         # tree.print()
 
         return best_move
+
+    def _select_node(self, node):
+        while node.fully_expanded and not node.is_leaf:
+            node.rollouts += 1
+            node = self.selection_policy(node)
+
+        if not node.fully_expanded:
+            node.rollouts += 1
+            node = node.expand()
+
+        node.rollouts += 1
+        return node
+
+    @staticmethod
+    def _worker_initializer(rollout_agent):
+        global _worker_rollout_agent
+        _worker_rollout_agent = rollout_agent
+
+    @staticmethod
+    def _rollout_worker(state, current_player):
+        while not state.is_over():
+            state = state.apply_move(_worker_rollout_agent.select_move(state))
+        return state.winner == current_player
+
+    @staticmethod
+    def _propagate_result(node, win):
+        while node is not None:
+            if win:
+                node.wins += 1
+            node = node.parent
+            win = not win
 
 
 class StandardMCTSAgent(MCTSAgent):
