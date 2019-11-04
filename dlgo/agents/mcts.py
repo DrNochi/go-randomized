@@ -5,8 +5,6 @@ import random
 from dlgo.agents.base import Agent
 from dlgo.agents.random import FastConstrainedRandomAgent
 
-_worker_rollout_agent = None
-
 
 def select_random_child(node):
     return random.choice(node.children)
@@ -52,7 +50,6 @@ class MCTSNode:
     def propagate_result(self, win):
         if win:
             self.wins += 1
-
         if self.parent is not None:
             self.parent.propagate_result(not win)
 
@@ -86,64 +83,76 @@ class MCTSNode:
             child.print(max_depth - 1, indent + '  ')
 
 
+_worker_rollout_agent = None
+
+
 class MCTSAgent(Agent):
-    def __init__(self, rollouts, rollout_agent=FastConstrainedRandomAgent(), selection_policy=select_random_child):
+    def __init__(self, rollouts, rollout_agent=FastConstrainedRandomAgent(), selection_policy=select_random_child,
+                 multi_threaded=True):
         self.rollouts = rollouts
         self.rollout_agent = rollout_agent
         self.selection_policy = selection_policy
+        self.multi_threaded = multi_threaded
 
     def select_move(self, game):
+        return self._select_move_mt(game) if self.multi_threaded else self._select_move(game)
+
+    def _select_move(self, game):
+        tree = MCTSNode(game)
+
+        rollout = 0
+        while rollout < self.rollouts:
+            node = self._select_node(tree)
+            win = self._rollout(node.state, node.parent.state.next_player)
+            self._propagate_result(node, win)
+            rollout += 1
+
+        return self._get_best_move(tree)
+
+    def _select_move_mt(self, game):
         tree = MCTSNode(game)
 
         worker_count = multiprocessing.cpu_count()
-        with multiprocessing.Pool(worker_count, initializer=self._worker_initializer,
+        with multiprocessing.Pool(worker_count, initializer=self._init_worker,
                                   initargs=(self.rollout_agent,)) as workers:
-
+            rollout = 0
             prepared = []
             running = []
             finished = []
 
-            rollout = 0
             while rollout < self.rollouts:
                 if len(running) < worker_count and prepared:
-                    rollout += 1
+                    # Run rollout
                     node = prepared.pop()
-                    running.append((
-                        workers.apply_async(self._rollout_worker, (node.state, node.parent.state.next_player)),
-                        node))
+                    running.append(
+                        (workers.apply_async(self._rollout, (node.state, node.parent.state.next_player)), node)
+                    )
+                    rollout += 1
                 elif len(prepared) < worker_count:
+                    # Prepare rollout
                     node = self._select_node(tree)
                     prepared.append(node)
+                else:
+                    # Collect finished
+                    for win, node in finished:
+                        self._propagate_result(node, win)
+                    finished.clear()
 
-                for win, node in finished:
-                    self._propagate_result(node, win)
-                finished.clear()
+                    for job, node in running:
+                        if job.ready():
+                            win = job.get()
+                            finished.append((win, node))
+                    running = [(job, node) for job, node in running if not job.ready()]
 
-                for job, node in running:
-                    if job.ready():
-                        win = job.get()
-                        finished.append((win, node))
-                running = [(job, node) for job, node in running if not job.ready()]
-
-            workers.close()
-            workers.join()
-
+            # Collect remaining rollouts
             for win, node in finished:
                 self._propagate_result(node, win)
+            workers.close()
+            workers.join()
             for job, node in running:
                 self._propagate_result(node, job.get())
 
-        best_move = None
-        best_winning_fraction = -1
-
-        for child in tree.children:
-            if child.winning_fraction > best_winning_fraction:
-                best_move = child.state.last_move
-                best_winning_fraction = child.winning_fraction
-
-        # tree.print()
-
-        return best_move
+        return self._get_best_move(tree)
 
     def _select_node(self, node):
         while node.fully_expanded and not node.is_leaf:
@@ -158,12 +167,12 @@ class MCTSAgent(Agent):
         return node
 
     @staticmethod
-    def _worker_initializer(rollout_agent):
+    def _init_worker(rollout_agent):
         global _worker_rollout_agent
         _worker_rollout_agent = rollout_agent
 
     @staticmethod
-    def _rollout_worker(state, current_player):
+    def _rollout(state, current_player):
         while not state.is_over():
             state = state.apply_move(_worker_rollout_agent.select_move(state))
         return state.winner == current_player
@@ -176,7 +185,20 @@ class MCTSAgent(Agent):
             node = node.parent
             win = not win
 
+    @staticmethod
+    def _get_best_move(tree):
+        best_move = None
+        best_winning_fraction = -1
+
+        for child in tree.children:
+            if child.winning_fraction > best_winning_fraction:
+                best_move = child.state.last_move
+                best_winning_fraction = child.winning_fraction
+
+        return best_move
+
 
 class StandardMCTSAgent(MCTSAgent):
-    def __init__(self, rollouts, temperature):
-        super().__init__(rollouts, selection_policy=lambda n: select_uct_child(n, temperature))
+    def __init__(self, rollouts, temperature, multi_threaded=True):
+        super().__init__(rollouts, selection_policy=lambda n: select_uct_child(n, temperature),
+                         multi_threaded=multi_threaded)
