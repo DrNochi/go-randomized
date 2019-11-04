@@ -41,7 +41,7 @@ class KGSIndex:
                 missing.append((info, path))
 
         with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
-            pool.map(self._worker, missing)
+            pool.map(self._download_archive, missing)
 
     def load(self):
         index_content = self._load_index()
@@ -62,7 +62,7 @@ class KGSIndex:
         self._download_archives()
 
     @staticmethod
-    def _worker(args):
+    def _download_archive(args):
         info, path = args
 
         print('>>> Downloading missing archive ' + info.filename)

@@ -3,7 +3,6 @@ import os
 from flask import Flask, request, jsonify
 
 from dlgo.boards.fast import FastGameState
-from dlgo.frontend.cmd import print_board
 from dlgo.frontend.utils import point_from_coords, coords_from_point
 from dlgo.gotypes import Move
 
@@ -31,8 +30,6 @@ def get_web_app(bots):
 
         bot = bots[bot_name]
         move = bot.select_move(game)
-
-        print_board(game.board)
 
         if move.is_pass:
             move_str = 'pass'

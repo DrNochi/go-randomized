@@ -21,38 +21,36 @@ cols = 19
 batch_size = 128
 
 data = ParallelKGSDataSet(encoder=SevenPlaneEncoder(rows, cols))
-# data_train = data.load_data('train', 5000, use_generator=True)
+data_train = data.load_data('train', 5000, use_generator=True)
 data_test = data.load_data('test', None, use_generator=True)
 
 input_shape = data.encoder.board_shape
 output_shape = data.encoder.move_shape
 
-# model = keras.models.Sequential([
-#     keras.layers.Input(input_shape),
-#     keras.layers.Conv2D(64, (7, 7), activation='relu', padding='same'),
-#     keras.layers.Conv2D(64, (5, 5), activation='relu', padding='same'),
-#     keras.layers.Conv2D(64, (5, 5), activation='relu', padding='same'),
-#     keras.layers.Conv2D(48, (5, 5), activation='relu', padding='same'),
-#     keras.layers.Conv2D(48, (5, 5), activation='relu', padding='same'),
-#     keras.layers.Conv2D(32, (5, 5), activation='relu', padding='same'),
-#     keras.layers.Conv2D(32, (5, 5), activation='relu', padding='same'),
-#     keras.layers.Flatten(),
-#     keras.layers.Dense(1024, activation='relu'),
-#     keras.layers.Dense(output_shape[0], activation='softmax')])
-# model.summary()
-#
-# model.compile('adam', loss='categorical_crossentropy', metrics=['accuracy'])
-#
-# model.fit_generator(data_train.generate_repeating(batch_size),
-#                     steps_per_epoch=data_train.length(batch_size), epochs=1000,
-#                     validation_data=data_test.generate_repeating(batch_size), validation_steps=1,
-#                     callbacks=[keras.callbacks.ModelCheckpoint('../../nn_models/seven_plane_19x19.best.h5',
-#                                                                save_best_only=True),
-#                                keras.callbacks.ModelCheckpoint('../../nn_models/seven_plane_19x19.latest.h5')])
+model = keras.models.Sequential([
+    keras.layers.Input(input_shape),
+    keras.layers.Conv2D(64, (7, 7), activation='relu', padding='same'),
+    keras.layers.Conv2D(64, (5, 5), activation='relu', padding='same'),
+    keras.layers.Conv2D(64, (5, 5), activation='relu', padding='same'),
+    keras.layers.Conv2D(48, (5, 5), activation='relu', padding='same'),
+    keras.layers.Conv2D(48, (5, 5), activation='relu', padding='same'),
+    keras.layers.Conv2D(32, (5, 5), activation='relu', padding='same'),
+    keras.layers.Conv2D(32, (5, 5), activation='relu', padding='same'),
+    keras.layers.Flatten(),
+    keras.layers.Dense(1024, activation='relu'),
+    keras.layers.Dense(output_shape[0], activation='softmax')])
+model.summary()
 
-model = keras.models.load_model('../../nn_models/seven_plane_19x19.latest.h5')
+model.compile('adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+model.fit_generator(data_train.generate_repeating(batch_size),
+                    steps_per_epoch=data_train.length(batch_size), epochs=1000,
+                    validation_data=data_test.generate_repeating(batch_size), validation_steps=1,
+                    callbacks=[keras.callbacks.ModelCheckpoint('../../nn_models/seven_plane_19x19.best.h5',
+                                                               save_best_only=True),
+                               keras.callbacks.ModelCheckpoint('../../nn_models/seven_plane_19x19.latest.h5')])
 
 loss, accuracy = model.evaluate_generator(data_test.generate(batch_size), steps=data_test.length(batch_size), verbose=1)
 print('Loss:', loss, '- Accuracy:', accuracy)
 
-# model.save('../../nn_models/seven_plane_19x19.h5')
+model.save('../../nn_models/seven_plane_19x19.h5')

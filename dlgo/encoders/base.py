@@ -19,8 +19,11 @@ class Encoder:
     def sample_moves(self, encoded):
         raise NotImplementedError()
 
-    def get_move(self, *args):
+    def get_move(self, internal):
         raise NotImplementedError()
+
+    def can_encode_move(self, move):
+        return move.is_play or (move.is_pass and self.can_encode_pass) or (move.is_resign and self.can_encode_resign)
 
     @property
     def board_shape(self):
@@ -32,6 +35,10 @@ class Encoder:
 
     @property
     def can_encode_pass(self):
+        raise NotImplementedError()
+
+    @property
+    def can_encode_resign(self):
         raise NotImplementedError()
 
 
@@ -64,6 +71,10 @@ class OneHotMoveEncoder(Encoder):
 
     @property
     def can_encode_pass(self):
+        return False
+
+    @property
+    def can_encode_resign(self):
         return False
 
     def encode_board(self, game):

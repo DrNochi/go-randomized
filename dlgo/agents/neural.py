@@ -8,12 +8,12 @@ from dlgo.gotypes import Move
 
 class PolicyAgent(Agent):
     def __init__(self, model, encoder, sample=False):
-        self.model = keras.models.load_model(model)
+        self.model = keras.models.load_model(model) if isinstance(model, str) else model
         self.encoder = encoder
         self.sample_prediction = sample
 
     def _predict_moves(self, game):
-        prediction = self.model.predict(np.expand_dims(self.encoder.encode_board(game), axis=0))[0]
+        prediction = self.model.predict_on_batch(np.expand_dims(self.encoder.encode_board(game), axis=0))[0]
 
         if self.sample_prediction:
             epsilon = 1e-6
