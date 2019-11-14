@@ -30,13 +30,15 @@ class LocalGtpBot:
             raise ValueError(f'Unknown bot name {opponent}')
 
     def send_command(self, cmd):
+        print(cmd)
         self.gtp_stream.stdin.write(cmd.encode('utf-8'))
+        self.gtp_stream.stdin.flush()
 
     def get_response(self):
         succeeded = False
         result = ''
         while not succeeded:
-            line = self.gtp_stream.stdout.readline()
+            line = str(self.gtp_stream.stdout.readline(), 'utf-8')
             if line[0] == '=':
                 succeeded = True
                 line = line.strip()
