@@ -1,0 +1,7 @@
+{
+  "name": "gobby",
+  "version": "0.1.0",
+  "dependencies": {
+    "gtp2ogs": "^5.3.1"
+  }
+}

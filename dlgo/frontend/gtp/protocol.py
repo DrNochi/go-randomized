@@ -5,8 +5,7 @@ class Command:
         self.arguments = arguments
 
     def __str__(self):
-        return '{}{} {}'.format(str(self.id) + ' ' if self.id is not None else '', self.command,
-                                ' '.join(self.arguments))
+        return f'{str(self.id) + " " if self.id is not None else ""}{self.command} {" ".join(self.arguments)}'
 
     @staticmethod
     def parse(string):
@@ -28,7 +27,7 @@ class Response:
         self.result = result
 
     def __str__(self):
-        return '{}{} {}'.format('=' if self.success else '?', self.id if self.id is not None else '', self.result)
+        return f'{"=" if self.success else "?"}{self.id if self.id is not None else ""} {self.result}'
 
     @staticmethod
     def parse(string):

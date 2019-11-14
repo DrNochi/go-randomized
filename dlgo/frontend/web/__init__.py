@@ -2,9 +2,8 @@ import os
 
 from flask import Flask, request, jsonify
 
-from dlgo.boards.fast import FastGameState
-from dlgo.frontend.utils import point_from_coords, coords_from_point
-from dlgo.gotypes import Move
+from dlgo.go import GameState, Move
+from dlgo.utils import point_from_coords, coords_from_point
 
 
 def get_web_app(bots):
@@ -17,7 +16,7 @@ def get_web_app(bots):
         content = request.json
         board_size = content['board_size']
 
-        game = FastGameState.new_game(board_size, komi=7.5)
+        game = GameState.new_game(board_size, komi=7.5)
 
         for move_str in content['moves']:
             if move_str == 'pass':

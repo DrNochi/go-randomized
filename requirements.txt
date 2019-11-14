@@ -1,0 +1,6 @@
+Flask
+h5py
+numpy
+# tensorflow
+tensorflow-gpu
+sgfmill

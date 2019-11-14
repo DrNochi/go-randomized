@@ -1,10 +1,8 @@
 import sys
 
-from dlgo.boards.fast import FastGameState, FastBoard
-from dlgo.frontend.gtp.protocol import Command, Response
-from dlgo.frontend.gtp.utils import fixed_handicap
-from dlgo.frontend.utils import coords_from_point, point_from_coords, format_board
-from dlgo.gotypes import Player, Move
+from dlgo.go import GameState, Board, Player, Move
+from dlgo.utils import fixed_handicap_positions, coords_from_point, point_from_coords, format_board
+from .protocol import Command, Response
 
 
 class GTPFrontend:
@@ -13,7 +11,7 @@ class GTPFrontend:
 
         self.board_size = 19
         self.komi = 7.5
-        self.game = FastGameState.new_game(self.board_size, self.komi)
+        self.game = GameState.new_game(self.board_size, self.komi)
 
         self._input = input_stream
         self._output = output_stream
@@ -67,7 +65,7 @@ class GTPFrontend:
         return Response(True, command.id, 2)
 
     def _handle_name(self, command):
-        return Response(True, command.id, 'DLGO ({})'.format(type(self.agent).__name__))
+        return Response(True, command.id, f'DLGO ({type(self.agent).__name__})')
 
     @staticmethod
     def _handle_version(command):
@@ -85,11 +83,11 @@ class GTPFrontend:
 
     def _handle_boardsize(self, command):
         self.board_size = int(command.arguments[0])
-        self.game = FastGameState.new_game(self.board_size, self.komi)
+        self.game = GameState.new_game(self.board_size, self.komi)
         return Response(True, command.id, '')
 
     def _handle_clear_board(self, command):
-        self.game = FastGameState.new_game(self.board_size, self.komi)
+        self.game = GameState.new_game(self.board_size, self.komi)
         return Response(True, command.id, '')
 
     def _handle_komi(self, command):
@@ -98,44 +96,44 @@ class GTPFrontend:
         return Response(True, command.id, '')
 
     def _handle_fixed_handicap(self, command):
-        assert self.game.prev_state is None
+        assert self.game.previous_state is None
 
-        handicap = fixed_handicap(self.board_size, int(command.arguments[0]))
+        handicap = fixed_handicap_positions(self.board_size, int(command.arguments[0]))
 
-        board = FastBoard(self.board_size, self.board_size)
+        board = Board(self.board_size)
         for point in handicap:
             board.place_stone(Player.black, point)
-        self.game = FastGameState(board, Player.white, None, None, self.komi)
+        self.game = GameState(board, Player.white, None, None, self.komi)
 
         return Response(True, command.id, ' '.join([coords_from_point(point) for point in handicap]))
 
     def _handle_place_free_handicap(self, command):
-        assert self.game.prev_state is None
+        assert self.game.previous_state is None
 
-        handicap = fixed_handicap(self.board_size, int(command.arguments[0]))
+        handicap = fixed_handicap_positions(self.board_size, int(command.arguments[0]))
 
-        board = FastBoard(self.board_size, self.board_size)
+        board = Board(self.board_size)
         for position in handicap:
             board.place_stone(Player.black, position)
-        self.game = FastGameState(board, Player.white, None, None, self.komi)
+        self.game = GameState(board, Player.white, None, None, self.komi)
 
         return Response(True, command.id, ' '.join([coords_from_point(point) for point in handicap]))
 
     def _handle_set_free_handicap(self, command):
-        assert self.game.prev_state is None
+        assert self.game.previous_state is None
 
         handicap = [point_from_coords(coords) for coords in command.arguments]
 
-        board = FastBoard(self.board_size, self.board_size)
+        board = Board(self.board_size)
         for position in handicap:
             board.place_stone(Player.black, position)
-        self.game = FastGameState(board, Player.white, None, None, self.komi)
+        self.game = GameState(board, Player.white, None, None, self.komi)
 
         return Response(True, command.id, '')
 
     def _handle_play(self, command):
-        player = Player.black if command.arguments[0].lower() == 'b' else Player.white
-        assert self.game.next_player == player
+        player = Player.black if command.arguments[0][0].lower() == 'b' else Player.white
+        assert self.game.next_player is player
 
         move_str = command.arguments[1].lower()
         if move_str == 'pass':
@@ -144,14 +142,14 @@ class GTPFrontend:
             move = Move.resign()
         else:
             move = Move.play(point_from_coords(move_str))
-        assert self.game.is_valid(move)
+        assert self.game.is_valid_move(move)
         self.game = self.game.apply_move(move)
 
         return Response(True, command.id, '')
 
     def _handle_genmove(self, command):
-        player = Player.black if command.arguments[0].lower() == 'b' else Player.white
-        assert self.game.next_player == player
+        player = Player.black if command.arguments[0][0].lower() == 'b' else Player.white
+        assert self.game.next_player is player
 
         move = self.agent.select_move(self.game)
         if move.is_pass:

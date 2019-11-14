@@ -2,8 +2,8 @@ import math
 import multiprocessing
 import random
 
-from dlgo.agents.base import Agent
-from dlgo.agents.random import FastConstrainedRandomAgent
+from .agent import Agent
+from .random import ConstrainedRandomAgent
 
 
 def select_random_child(node):
@@ -36,7 +36,7 @@ class MCTSNode:
         self.rollouts = 0
         self.wins = 0
 
-        self.unvisited_moves = game.possible_moves()
+        self.unvisited_moves = game.possible_moves
 
     def expand(self):
         index = random.randint(0, len(self.unvisited_moves) - 1)
@@ -46,12 +46,6 @@ class MCTSNode:
         self.children.append(child)
 
         return child
-
-    def propagate_result(self, win):
-        if win:
-            self.wins += 1
-        if self.parent is not None:
-            self.parent.propagate_result(not win)
 
     @property
     def fully_expanded(self):
@@ -70,14 +64,11 @@ class MCTSNode:
             return
 
         if self.parent is None:
-            print('%sroot %d %.3f' % (indent, self.rollouts, self.winning_fraction))
+            print(f'{indent}root {self.rollouts} {self.winning_fraction}')
         else:
             player = self.parent.state.next_player
             move = self.state.last_move
-            print('%s%s %s %d %.3f' % (
-                indent, str(player), str(move.point),
-                self.rollouts, self.winning_fraction,
-            ))
+            print(f'{indent}{player} {move.point} {self.rollouts} {self.winning_fraction}')
 
         for child in sorted(self.children, key=lambda n: n.rollouts, reverse=True):
             child.print(max_depth - 1, indent + '  ')
@@ -86,8 +77,19 @@ class MCTSNode:
 _worker_rollout_agent = None
 
 
+def _init_worker(rollout_agent):
+    global _worker_rollout_agent
+    _worker_rollout_agent = rollout_agent
+
+
+def _rollout(state, current_player):
+    while not state.is_over:
+        state = state.apply_move(_worker_rollout_agent.select_move(state))
+    return state.winner is current_player
+
+
 class MCTSAgent(Agent):
-    def __init__(self, rollouts, rollout_agent=FastConstrainedRandomAgent(), selection_policy=select_random_child,
+    def __init__(self, rollouts, rollout_agent=ConstrainedRandomAgent(), selection_policy=select_random_child,
                  multi_threaded=True):
         self.rollouts = rollouts
         self.rollout_agent = rollout_agent
@@ -103,7 +105,7 @@ class MCTSAgent(Agent):
         rollout = 0
         while rollout < self.rollouts:
             node = self._select_node(tree)
-            win = self._rollout(node.state, node.parent.state.next_player)
+            win = _rollout(node.state, node.parent.state.next_player)
             self._propagate_result(node, win)
             rollout += 1
 
@@ -113,7 +115,7 @@ class MCTSAgent(Agent):
         tree = MCTSNode(game)
 
         worker_count = multiprocessing.cpu_count()
-        with multiprocessing.Pool(worker_count, initializer=self._init_worker,
+        with multiprocessing.Pool(worker_count, initializer=_init_worker,
                                   initargs=(self.rollout_agent,)) as workers:
             rollout = 0
             prepared = []
@@ -125,7 +127,7 @@ class MCTSAgent(Agent):
                     # Run rollout
                     node = prepared.pop()
                     running.append(
-                        (workers.apply_async(self._rollout, (node.state, node.parent.state.next_player)), node)
+                        (workers.apply_async(_rollout, (node.state, node.parent.state.next_player)), node)
                     )
                     rollout += 1
                 elif len(prepared) < worker_count:
@@ -165,17 +167,6 @@ class MCTSAgent(Agent):
 
         node.rollouts += 1
         return node
-
-    @staticmethod
-    def _init_worker(rollout_agent):
-        global _worker_rollout_agent
-        _worker_rollout_agent = rollout_agent
-
-    @staticmethod
-    def _rollout(state, current_player):
-        while not state.is_over():
-            state = state.apply_move(_worker_rollout_agent.select_move(state))
-        return state.winner == current_player
 
     @staticmethod
     def _propagate_result(node, win):

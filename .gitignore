@@ -8,6 +8,9 @@ venv/
 # PyCharm
 .idea/
 
+# Node.js
+node_modules/
+
 # Temporary files
 .cache/
-tmp_*
+tmp*
